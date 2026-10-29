@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Plus Calculator - GST</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#ffffff">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
+html, body { height: 100%; overflow: hidden; font-family: -apple-system, "SF Pro Text", Roboto, "Helvetica Neue", Arial, sans-serif; background: #fff; }
+button { font: inherit; border: 0; background: none; color: inherit; cursor: pointer; outline: none; }
+.hidden { display: none !important; }
+
+body[data-theme=day] {
+  --tapeBg: #fff;
+  --tapeText: #111;
+  --tapeDim: #9a9a9a;
+  --tapeLine: #f0f0f0;
+  --neg: #e5322d;
+  --dispBg: #d7f7ff;
+  --dispText: #111;
+  --dispDim: #444;
+  --fnBg: #fffbc4;
+  --fnGlyph: #555;
+  --numBg: #fff500;
+  --numGlyph: #111;
+  --opGlyph: #111;
+  --keyPress: #e6dc00;
+  --barBg: #f4f4f4;
+  --popBg: #fff;
+  --popText: #222;
+}
+
+#app { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--tapeBg); padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+#statusBar { height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-size: 15px; font-weight: 600; background: #fff; flex-shrink: 0; }
+#statusBar .left { display: flex; align-items: center; gap: 4px; }
+#statusBar .right { display: flex; align-items: center; gap: 6px; }
+
+#tapeArea { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--tapeBg); }
+#tapeWrap { flex: 1; overflow-y: auto; padding: 8px 12px 8px; }
+#tape .row { display: flex; align-items: center; padding: 4px 0; font-size: 16px; color: var(--tapeText); font-variant-numeric: tabular-nums; }
+#tape .row .ix { width: 28px; color: var(--tapeDim); font-size: 14px; }
+#tape .row .opc { width: 20px; text-align: center; color: var(--tapeDim); }
+#tape .row .val { margin-left: auto; font-weight: 500; }
+
+#gstPanel { display: none; position: absolute; left: 8px; top: 8px; width: calc(100% - 16px); max-width: 380px; z-index: 2; padding: 10px 14px 12px; border-radius: 14px; background: var(--tapeBg); color: var(--tapeText); border: 1px solid var(--tapeLine); box-shadow: 0 4px 18px rgba(0,0,0,.18); font-variant-numeric: tabular-nums; }
+body.gstmode #gstPanel { display: block; }
+#gstPanel .h { font-size: 13px; color: var(--tapeDim); margin-bottom: 4px; }
+#gstPanel .h b { color: var(--tapeText); }
+#gstPanel .l { display: flex; align-items: baseline; gap: 10px; padding: 3px 4px; margin: 0 -4px; border-radius: 8px; cursor: pointer; }
+#gstPanel .l:active { background: var(--tapeLine); }
+#gstPanel .l span { width: 52px; flex: none; font-size: 15px; font-weight: 600; color: var(--tapeDim); }
+#gstPanel .l .v { font-size: 26px; font-weight: 600; letter-spacing: -0.3px; }
+#gstPanel .l i { margin-left: auto; font-style: normal; font-size: 13px; color: var(--tapeDim); white-space: nowrap; }
+#gstPanel .cs { display: flex; gap: 16px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--tapeLine); font-size: 15px; }
+#gstPanel .cs span { color: var(--tapeDim); }
+
+#display { background: var(--dispBg); color: var(--dispText); padding: 8px 16px 10px; position: relative; flex-shrink: 0; }
+#dispTop { font-size: 13px; color: var(--dispDim); display: flex; justify-content: space-between; }
+#dispFmt { font-size: 13px; color: var(--dispDim); margin-top: 2px; }
+#dispTotal { font-size: 42px; font-weight: 600; letter-spacing: -1px; text-align: right; margin-top: 4px; font-variant-numeric: tabular-nums; }
+#dispEntry { font-size: 28px; font-weight: 500; text-align: right; color: var(--dispDim); min-height: 34px; }
+#caret { display: inline-block; width: 2px; height: 24px; background: #000; margin-left: 2px; animation: blink 1s steps(1) infinite; vertical-align: middle; }
+@keyframes blink { 50% { opacity: 0; } }
+
+#gstRow { display: flex; gap: 6px; padding: 6px 8px; background: #fffef0; flex-shrink: 0; }
+#gstRow .k { flex: 1; height: 44px; border-radius: 10px; background: #fff8d0; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #333; border: 1px solid #f0e8a0; }
+#gstRow .k.gsw { flex-direction: row; gap: 6px; justify-content: center; }
+#gstRow .k.gsw .tg { width: 36px; height: 22px; background: #34c759; border-radius: 11px; position: relative; }
+#gstRow .k.gsw .tg::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; background: #fff; border-radius: 50%; transition: left 0.2s; }
+body.gstmode #gstRow .k.gsw .tg::after { left: 16px; }
+#gstRow .k small { font-size: 10px; font-weight: 500; opacity: 0.7; }
+
+#keypad { display: flex; background: var(--numBg); flex-shrink: 0; padding: 4px; gap: 4px; }
+#fnCol { display: flex; flex-direction: column; gap: 4px; width: 52px; }
+#fnCol .k { height: 52px; border-radius: 10px; background: var(--fnBg); display: flex; align-items: center; justify-content: center; color: var(--fnGlyph); }
+#fnCol .k svg { width: 22px; height: 22px; }
+#mainKeys { flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(4, 52px); gap: 4px; }
+#mainKeys .k { border-radius: 12px; background: var(--numBg); display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 500; color: var(--numGlyph); }
+#mainKeys .k.op { background: var(--numBg); color: var(--opGlyph); font-size: 28px; }
+#mainKeys .k.plus { grid-column: 3; grid-row: 4 / span 1; font-size: 36px; height: auto; } /* adjust if needed */
+#mainKeys .k:active { background: var(--keyPress); }
+
+@media (max-width: 400px) {
+  #dispTotal { font-size: 36px; }
+  #gstPanel .l .v { font-size: 22px; }
+}
+</style>
+</head>
+<body data-theme="day" class="gstmode">
+<div id="app">
+  <div id="statusBar">
+    <div class="left">9:45 <span style="font-size:12px;">🔔</span></div>
+    <div class="right">
+      <span>📶</span><span>WiFi</span>
+      <span style="background:#000;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">60</span>
+    </div>
+  </div>
+
+  <div id="tapeArea">
+    <div id="tapeWrap">
+      <div id="tape"></div>
+    </div>
+    <div id="gstPanel"></div>
+  </div>
+
+  <div id="display">
+    <div id="dispTop"><span id="dispName">"Home" Total [+=]</span></div>
+    <div id="dispFmt">Standard</div>
+    <div id="dispTotal">0.00</div>
+    <div id="dispEntry"><span id="entryText">0</span><span id="caret"></span></div>
+  </div>
+
+  <div id="gstRow">
+    <button class="k gst gsw" id="gstToggle"><b>GST</b><span class="tg"></span></button>
+    <button class="k gst" id="btnPlusGst"><b>+GST</b></button>
+    <button class="k gst" id="btnMinusGst"><b>−GST</b></button>
+    <button class="k gst" id="btnGstAmt"><b>GST</b><small>amount</small></button>
+    <button class="k gst" id="btnSlab"><b class="slabV">18%</b><small>slab</small></button>
+  </div>
+
+  <div id="keypad">
+    <div id="fnCol">
+      <button class="k fn" data-k="delrow" title="Delete last"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3h8l5 9-5 9H8l-5-9z"/><path d="M9.5 9.5l5 5M14.5 9.5l-5 5"/></svg></button>
+      <button class="k fn" data-k="back" title="Backspace"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h12v12H8l-5-6z"/><path d="M11 9.5l5 5M16 9.5l-5 5"/></svg></button>
+      <button class="k fn" data-k="clearall" title="Clear all"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 8.5l7 7M15.5 8.5l-7 7"/></svg></button>
+      <button class="k fn" data-k="clear" title="Clear entry"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 7.2A7.5 7.5 0 1 0 17.5 16.8"/><path d="M15.4 9.1A4.6 4.6 0 1 0 15.4 14.9"/></svg></button>
+      <button class="k fn" data-k="mem" title="Memory"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5l8 9 8-9v14"/><path d="M6.5 19V10.5l5.5 6.2 5.5-6.2V19"/></svg></button>
+      <button class="k fn" data-k="neg" title="±"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v8M8 8h8M7 18h10"/></svg></button>
+      <button class="k fn" data-k="tapes" title="List"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="1"/><path d="M8 7h8M8 10h8M8 13h8M8 16h5"/></svg></button>
+      <button class="k fn" data-k="pct" title="Percent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 5L6 19"/><circle cx="7.5" cy="7.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/></svg></button>
+    </div>
+    <div id="mainKeys">
+      <button class="k" data-k="7">7</button>
+      <button class="k" data-k="8">8</button>
+      <button class="k" data-k="9">9</button>
+      <button class="k op" data-k="/">÷</button>
+      <button class="k" data-k="4">4</button>
+      <button class="k" data-k="5">5</button>
+      <button class="k" data-k="6">6</button>
+      <button class="k op" data-k="*">×</button>
+      <button class="k" data-k="1">1</button>
+      <button class="k" data-k="2">2</button>
+      <button class="k" data-k="3">3</button>
+      <button class="k op" data-k="-">−</button>
+      <button class="k" data-k="0">0</button>
+      <button class="k" data-k=".">.</button>
+      <button class="k op plus" data-k="+">+</button>
+      <button class="k op" data-k="=">=</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+
+let tape = []; // {ix, op, val}
+let entry = '0';
+let total = 0;
+let gstRate = 18;
+let gstMode = true;
+let memory = 0;
+
+function round2(n) { return Math.round(n * 100) / 100; }
+function fmt(n) {
+  return n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function updateDisplay() {
+  $('#dispTotal').textContent = fmt(total);
+  $('#entryText').textContent = entry === '' ? '0' : entry;
+  renderTape();
+  if (gstMode) updateGstPanel();
+}
+
+function renderTape() {
+  const el = $('#tape');
+  el.innerHTML = '';
+  // dummy 0
+  const r0 = document.createElement('div');
+  r0.className = 'row';
+  r0.innerHTML = `<span class="ix">0</span><span class="opc"></span><span class="val">${fmt(0)}</span>`;
+  el.appendChild(r0);
+  tape.forEach((item, i) => {
+    const r = document.createElement('div');
+    r.className = 'row';
+    r.innerHTML = `<span class="ix">${i+1}</span><span class="opc">${item.op}</span><span class="val">${fmt(item.val)}</span>`;
+    el.appendChild(r);
+  });
+  // scroll to bottom
+  const wrap = $('#tapeWrap');
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+function updateGstPanel() {
+  const x = total;
+  const r = gstRate;
+  const inc = round2(x * (1 + r / 100));
+  const tax = round2(x * r / 100);
+  const exc = round2(x / (1 + r / 100));
+  const taxIn = round2(x - exc);
+  const half = (r / 2).toFixed(0);
+  const cgst = round2(tax / 2);
+  $('#gstPanel').innerHTML = `
+    <div class="h">GST <b>${r}%</b> on total <b>${fmt(x)}</b></div>
+    <div class="l" data-val="${inc}"><span>+GST</span><b class="v">${fmt(inc)}</b><i>tax ${fmt(tax)}</i></div>
+    <div class="l" data-val="${exc}"><span>−GST</span><b class="v">${fmt(exc)}</b><i>tax ${fmt(taxIn)}</i></div>
+    <div class="cs"><div><span>CGST ${half}%</span> ${fmt(cgst)}</div><div><span>SGST ${half}%</span> ${fmt(cgst)}</div></div>
+  `;
+  // click to use value
+  $$('#gstPanel .l').forEach(el => {
+    el.onclick = () => {
+      const v = parseFloat(el.dataset.val);
+      if (!isNaN(v)) {
+        total = v;
+        entry = '';
+        updateDisplay();
+      }
+    };
+  });
+}
+
+function addToTape(op, val) {
+  if (isNaN(val) || val === 0) return;
+  tape.push({ op, val: round2(val) });
+  total = round2(total + (op === '+' ? val : op === '-' ? -val : 0));
+  entry = '';
+  updateDisplay();
+}
+
+function handleKey(k) {
+  if (k >= '0' && k <= '9') {
+    if (entry === '0') entry = k;
+    else entry += k;
+  } else if (k === '.') {
+    if (!entry.includes('.')) entry += (entry === '' ? '0.' : '.');
+  } else if (k === '+') {
+    const v = parseFloat(entry) || 0;
+    if (v !== 0) addToTape('+', v);
+  } else if (k === '-') {
+    const v = parseFloat(entry) || 0;
+    if (v !== 0) addToTape('-', v);
+  } else if (k === '*' || k === '/') {
+    // simple: treat as operator on entry for now, or ignore for tape mode
+    entry = entry; // placeholder
+  } else if (k === '=') {
+    // finalize
+    const v = parseFloat(entry) || 0;
+    if (v !== 0) addToTape('+', v);
+  } else if (k === 'back') {
+    entry = entry.slice(0, -1) || '0';
+  } else if (k === 'clear') {
+    entry = '0';
+  } else if (k === 'clearall') {
+    tape = [];
+    total = 0;
+    entry = '0';
+  } else if (k === 'delrow') {
+    if (tape.length) {
+      const last = tape.pop();
+      total = round2(total - (last.op === '+' ? last.val : -last.val));
+    }
+  } else if (k === 'neg') {
+    if (entry.startsWith('-')) entry = entry.slice(1);
+    else if (entry !== '0') entry = '-' + entry;
+  } else if (k === 'pct') {
+    const v = parseFloat(entry) || 0;
+    entry = String(round2(v / 100));
+  } else if (k === 'mem') {
+    memory = total;
+    // could show toast
+  }
+  updateDisplay();
+}
+
+// GST buttons
+$('#gstToggle').onclick = () => {
+  gstMode = !gstMode;
+  document.body.classList.toggle('gstmode', gstMode);
+  updateDisplay();
+};
+
+$('#btnPlusGst').onclick = () => {
+  const v = round2(total * (1 + gstRate / 100));
+  total = v;
+  entry = '';
+  updateDisplay();
+};
+$('#btnMinusGst').onclick = () => {
+  const v = round2(total / (1 + gstRate / 100));
+  total = v;
+  entry = '';
+  updateDisplay();
+};
+$('#btnGstAmt').onclick = () => {
+  const tax = round2(total * gstRate / 100);
+  entry = String(tax);
+  updateDisplay();
+};
+$('#btnSlab').onclick = () => {
+  // cycle common rates or prompt
+  const rates = [5, 12, 18, 28];
+  let i = rates.indexOf(gstRate);
+  gstRate = rates[(i + 1) % rates.length];
+  $('.slabV').textContent = gstRate + '%';
+  updateDisplay();
+};
+
+// keypad clicks
+$$('#keypad .k, #fnCol .k').forEach(btn => {
+  btn.onclick = () => handleKey(btn.dataset.k);
+});
+
+// init
+updateDisplay();
+// preload sample like photo
+tape = [
+  { op: '+', val: 56 },
+  { op: '+', val: 778 },
+  { op: '+', val: 89 }
+];
+total = 923;
+entry = '0';
+updateDisplay();
+</script>
+</body>
+</html>
